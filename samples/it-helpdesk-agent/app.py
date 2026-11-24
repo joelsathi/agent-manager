@@ -24,7 +24,7 @@ log.info(
     "IT helpdesk agent ready (company=%s, version=%s, llm_provider=%s, mcp_auth=%s, mcp_tools=%d)",
     CONFIG.company_name,
     CONFIG.agent_version,
-    "agent-manager" if CONFIG.use_llm_provider else "openai-direct",
+    "agent-manager" if CONFIG.use_llm_provider else f"{CONFIG.llm_api}-direct",
     "oauth" if CONFIG.mcp_oauth else "api-key",
     len(MCP_TOOLS),
 )
@@ -82,8 +82,12 @@ async def chat(req: ChatRequest) -> ChatResponse:
     if final is None:
         final = "(no response)"
     if isinstance(final, list):
+        # Content blocks: keep the text. Claude also returns thinking blocks,
+        # which are reasoning, not part of the answer.
         final = "\n".join(
-            part.get("text", "") if isinstance(part, dict) else str(part) for part in final
+            part.get("text", "") if isinstance(part, dict) else str(part)
+            for part in final
+            if not isinstance(part, dict) or part.get("type", "text") == "text"
         )
     return ChatResponse(
         response=str(final),

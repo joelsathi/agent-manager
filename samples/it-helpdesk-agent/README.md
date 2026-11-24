@@ -28,7 +28,9 @@ All configuration is environment variables. Only the LLM credential is required.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `OPENAI_API_KEY` | — | Required unless `USE_LLM_PROVIDER=true` |
+| `LLM_API` | `openai` | Model API the agent speaks: `openai` (Chat Completions) or `anthropic` (Claude, Messages API). Through Agent Manager it must match the attached provider's template |
+| `OPENAI_API_KEY` | — | Required with `LLM_API=openai` unless `USE_LLM_PROVIDER=true` |
+| `ANTHROPIC_API_KEY` | — | Required with `LLM_API=anthropic` unless `USE_LLM_PROVIDER=true` |
 | `COMPANY_NAME` | `AcmeCorp` | Used in the system prompt |
 | `TONE` | `professional and helpful` | Used in the system prompt |
 | `ADDITIONAL_GUIDANCE` | *(empty)* | Extra prompt text appended verbatim |
@@ -36,7 +38,8 @@ All configuration is environment variables. Only the LLM credential is required.
 | `AGENT_VERSION` | `dev` | Echoed in `/health` and chat responses |
 | `USE_LLM_PROVIDER` | `false` | Route through an Agent Manager LLM Service Provider |
 | `LLM_PROVIDER_URL` / `LLM_PROVIDER_KEY` | — | Injected by Agent Manager; required when `USE_LLM_PROVIDER=true` |
-| `LLM_MODEL` | `gpt-4o-mini` | Model name sent with every request. Set it to a model the provider's LLM serves, such as `gemini-flash-latest` for a provider pointed at Gemini's OpenAI-compatible endpoint. The model must support tool calls |
+| `LLM_MODEL` | `gpt-4o-mini`, or `claude-haiku-5-5` with `LLM_API=anthropic` | Model name sent with every request. Set it to a model the provider's LLM serves, such as `gemini-flash-latest` for a provider pointed at Gemini's OpenAI-compatible endpoint. The model must support tool calls |
+| `LLM_EFFORT` | *(empty)* | `LLM_API=anthropic` only: Claude's `output_config.effort` (`low` … `max`). Empty keeps the model's default; `low` suits these short tool turns |
 | `USE_MCP` | `false` | Load tools from an MCP proxy in addition to the in-process ones |
 | `GITHUB_MCP_URL` / `GITHUB_MCP_API_KEY` | — | Injected by Agent Manager when the `GitHub` MCP proxy is attached (set these names under **Environment Variable Names** when attaching; the console defaults to `GITHUB_URL` / `GITHUB_API_KEY`); required when `USE_MCP=true` |
 | `MCP_OAUTH` | `false` | Authenticate to the MCP proxy with the agent's AgentID (OAuth 2.0 bearer token) instead of an API key. Use when the proxy's **Security** tab is set to **OAuth**; `GITHUB_MCP_API_KEY` is then not needed |
@@ -70,6 +73,21 @@ curl -s localhost:8000/chat -H 'Content-Type: application/json' -d '{
 
 Reuse the same `session_id` across calls to continue a conversation. Omit it and
 each request starts its own.
+
+### Run it on Claude
+
+```bash
+export LLM_API=anthropic ANTHROPIC_API_KEY=sk-ant-...
+python main.py
+```
+
+Through Agent Manager, attach an LLM provider created from the **Anthropic**
+template and set `LLM_API=anthropic` with `USE_LLM_PROVIDER=true`. The agent
+sends the platform-issued key both as `x-api-key` (the Anthropic SDK's header)
+and as `API-Key`, so the provider's Security header can be either. No
+`temperature` is sent: current Claude models reject non-default sampling
+parameters. Claude's thinking blocks stay in the conversation history and are
+left out of the reply text.
 
 ## Test data
 

@@ -127,9 +127,32 @@ async def load_mcp_tools(cfg: Config) -> list[Any]:
     return list(await client.get_tools())
 
 
-def build_agent(cfg: Config, mcp_tools: list[Any] | None = None) -> Any:
+def build_llm(cfg: Config) -> Any:
+    """The chat model for ``cfg.llm_api``, direct or through an AM LLM provider."""
+    if cfg.llm_api == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
+        # No temperature: current Claude models reject non-default sampling
+        # parameters. They think before answering by default, which counts
+        # toward max_tokens, so leave room for it; LLM_EFFORT trades depth for
+        # cost and latency.
+        kwargs: dict[str, Any] = {"model": cfg.llm_model, "max_tokens": 4096}
+        if cfg.llm_effort:
+            kwargs["output_config"] = {"effort": cfg.llm_effort}
+        if cfg.use_llm_provider:
+            # The Anthropic SDK always sends its key as x-api-key. Send the
+            # platform-issued key there and as API-Key, so the provider works
+            # whichever header its Security tab names; the gateway swaps in the
+            # upstream Anthropic key on the way out.
+            kwargs.update(
+                base_url=cfg.llm_provider_url,
+                api_key=cfg.llm_provider_key,
+                default_headers={"API-Key": cfg.llm_provider_key},
+            )
+        return ChatAnthropic(**kwargs)  # else ANTHROPIC_API_KEY
+
     if cfg.use_llm_provider:
-        llm = ChatOpenAI(
+        return ChatOpenAI(
             model=cfg.llm_model,
             temperature=0,
             base_url=cfg.llm_provider_url,
@@ -139,8 +162,11 @@ def build_agent(cfg: Config, mcp_tools: list[Any] | None = None) -> Any:
                 "Authorization": "",
             },
         )
-    else:
-        llm = ChatOpenAI(model=cfg.llm_model, temperature=0)
+    return ChatOpenAI(model=cfg.llm_model, temperature=0)
+
+
+def build_agent(cfg: Config, mcp_tools: list[Any] | None = None) -> Any:
+    llm = build_llm(cfg)
 
     tools = build_tools(cfg) + list(mcp_tools or [])
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(

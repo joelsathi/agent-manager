@@ -19,7 +19,9 @@ class Config:
     additional_guidance: str
     agent_version: str
     use_llm_provider: bool
+    llm_api: str
     llm_model: str
+    llm_effort: str
     llm_provider_url: str
     llm_provider_key: str
     use_mcp: bool
@@ -51,6 +53,13 @@ class Config:
             ) from None
 
         use_llm_provider = _env("USE_LLM_PROVIDER", "false").lower() == "true"
+
+        # Which model API the agent speaks: the OpenAI Chat Completions API (the
+        # default, unchanged) or the Anthropic Messages API. Through Agent Manager
+        # this must match the attached provider's template.
+        llm_api = _env("LLM_API", "openai").lower()
+        if llm_api not in ("openai", "anthropic"):
+            raise RuntimeError(f"LLM_API must be openai or anthropic, got: {llm_api!r}")
         llm_provider_url = _env("LLM_PROVIDER_URL", "")
         llm_provider_key = _env("LLM_PROVIDER_KEY", "")
 
@@ -105,9 +114,13 @@ class Config:
             # rollback is visible from the outside without reading the console.
             agent_version=_env("AGENT_VERSION", "dev"),
             use_llm_provider=use_llm_provider,
+            llm_api=llm_api,
             # The name must be a model the LLM behind the provider serves, e.g.
             # gemini-flash-latest for Google's OpenAI-compatible Gemini endpoint.
-            llm_model=_env("LLM_MODEL", "gpt-4o-mini"),
+            llm_model=_env("LLM_MODEL", "claude-haiku-5-5" if llm_api == "anthropic" else "gpt-4o-mini"),
+            # Anthropic only: output_config.effort (low, medium, high, xhigh, max).
+            # Empty leaves the model's default.
+            llm_effort=_env("LLM_EFFORT", ""),
             llm_provider_url=llm_provider_url,
             llm_provider_key=llm_provider_key,
             use_mcp=use_mcp,

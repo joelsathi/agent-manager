@@ -2,6 +2,7 @@
 langchain>=1.4.7
 langchain-core>=1.7.3
 langchain-openai>=1.7.3
+langchain-anthropic>=1.7.12
 langgraph>=1.2.19
 
 # Only needed when USE_MCP=true. Supplies MultiServerMCPClient, which turns the
